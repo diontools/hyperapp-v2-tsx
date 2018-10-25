@@ -19,7 +19,7 @@ const mainState = {
 
 type MainState = typeof mainState;
 
-type MainAction<P = {}, E = {}> = Action<MainState, P, E>;
+type MainAction<P = {}, D = {}> = Action<MainState, P, D>;
 
 const SetCount: MainAction<{ count: number }> = (state, props) => ({ ...state, count: props.count });
 const SetAuto: MainAction<{ auto: boolean }> = (state, props) => ({ ...state, auto: props.auto });
