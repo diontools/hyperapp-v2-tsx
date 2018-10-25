@@ -77,6 +77,6 @@ app({
       <div>count: {state.count}</div>
     </div>
   ),
-  subscriptions: state => tick({ action: CountUp, interval: 1000 }),
+  subscriptions: state => [state.auto && tick({ action: CountUp, interval: 1000 })],
   container: document.body
 });
