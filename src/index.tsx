@@ -8,74 +8,73 @@ import {
   SubscriptionEffect
 } from "hyperapp";
 
-interface DelayProps {
-  action: DispatchableType<any, any, any>;
-  timeout: number;
+function act<S, P, D>(value: DispatchableType<S, P, D>) {
+  return value;
 }
 
-const delay: Effect<DelayProps, DelayProps> = props => ({
-  effect: (props, dispatch) => {
-    setTimeout(() => dispatch(props.action), props.timeout);
-  },
-  ...props
-});
-
 const mainState = {
-  count: 0
+  count: 0,
+  auto: false,
 };
 
 type MainState = typeof mainState;
 
 type MainAction<P = {}, E = {}> = Action<MainState, P, E>;
 
-const Test: MainAction = (state, args, ev) => {
-  console.log(state, args, ev);
-};
+const SetCount: MainAction<{ count: number }> = (state, props) => ({ ...state, count: props.count });
+const SetAuto: MainAction<{ auto: boolean }> = (state, props) => ({ ...state, auto: props.auto });
 
-const CountUp: MainAction = (state, ev) => ({
-  ...state,
-  count: state.count + 1
-});
+const CountUp: MainAction = (state) => ({ ...state, count: state.count + 1 });
 
-const DelayCountUp: MainAction = state => [
+const DelayCountUp: MainAction<{ timeout: number }> = (state, props) => [
   state,
-  delay({ action: CountUp, timeout: 1000 })
+  delay({ action: CountUp, timeout: props.timeout })
 ];
+
+interface DelayProps {
+  action: DispatchableType<any, any, any>;
+  timeout: number;
+}
+
+const delay: Effect<DelayProps> = (props) => ({
+  effect: (props, dispatch) => {
+    setTimeout(() => dispatch(props.action), props.timeout);
+  },
+  ...props
+});
 
 interface TickProps {
   action: DispatchableType<any, any, any>;
   interval: number;
 }
 
-const tickRunner: SubscriptionEffectRunner<TickProps> = (
-  { action, interval },
-  dispatch
-) => {
+const tickRunner: SubscriptionEffectRunner<TickProps> = (props, dispatch) => {
   console.log("scribe");
-  const id = setInterval(() => dispatch(action), interval);
+  const id = setInterval(() => dispatch(props.action), props.interval);
   return () => {
     console.log("unscribe");
     clearInterval(id);
   };
 };
 
-const tick: SubscriptionEffect<TickProps, TickProps> = ({
-  action,
-  interval
-}) => ({
+const tick: SubscriptionEffect<TickProps> = (props) => ({
   effect: tickRunner,
-  action,
-  interval
+  ...props
 });
 
 app({
-  init: [{ count: 0 }, delay({ action: CountUp, timeout: 1000 })],
+  init: [mainState, delay({ action: CountUp, timeout: 1000 })],
   view: state => (
     <div>
-      <button onClick={[Test, "abc"]}>Test</button>
-      <button onClick={DelayCountUp}>delay</button>
-      <button onClick={CountUp}>increment</button>
-      {state.count}
+      <button onClick={act([SetCount, { count: 0 }])}>Reset to 0</button>
+      <button onClick={act(CountUp)}>increment</button>
+      <button onClick={act([DelayCountUp, { timeout: 1000 }])}>
+        increment with delay
+      </button>
+      <button onClick={act([SetAuto, { auto: !state.auto }])}>
+        auto: {state.auto ? "enabled" : "disabled"}
+      </button>
+      <div>count: {state.count}</div>
     </div>
   ),
   subscriptions: state => tick({ action: CountUp, interval: 1000 }),
