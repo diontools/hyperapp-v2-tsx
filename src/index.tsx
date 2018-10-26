@@ -8,6 +8,8 @@ import {
   SubscriptionEffect
 } from "hyperapp";
 
+import { router, Location } from './router'
+
 function act<S, P, D>(value: DispatchableType<S, P, D>) {
   return value;
 }
@@ -15,11 +17,17 @@ function act<S, P, D>(value: DispatchableType<S, P, D>) {
 const mainState = {
   count: 0,
   auto: false,
+  location: {} as Location<any>,
 };
 
 type MainState = typeof mainState;
 
 type MainAction<P = {}, D = {}> = Action<MainState, P, D>;
+
+const Test: MainAction = state => {
+  history.pushState(null, '', '/abc');
+  return state;
+};
 
 const SetCount: MainAction<{ count: number }> = (state, props) => ({ ...state, count: props.count });
 const SetAuto: MainAction<{ auto: boolean }> = (state, props) => ({ ...state, auto: props.auto });
@@ -62,10 +70,18 @@ const tick: SubscriptionEffect<TickProps> = (props) => ({
   ...props
 });
 
+const route = router<MainState>({
+  routes: [{
+    path: '/abc',
+    view: state => <div>abc! count: {state.count}</div>
+  }]
+})
+
 app({
   init: [mainState, delay({ action: CountUp, timeout: 1000 })],
   view: state => (
     <div>
+      <button onClick={act([Test, { count: 0 }])}>Test</button>
       <button onClick={act([SetCount, { count: 0 }])}>Reset to 0</button>
       <button onClick={act(CountUp)}>increment</button>
       <button onClick={act([DelayCountUp, { timeout: 1000 }])}>
@@ -75,8 +91,12 @@ app({
         auto: {state.auto ? "enabled" : "disabled"}
       </button>
       <div>count: {state.count}</div>
+      <div>{state.location.route.view(state)}</div>
     </div>
   ),
-  subscriptions: state => [state.auto && tick({ action: CountUp, interval: 1000 })],
+  subscriptions: state => [
+    state.auto && tick({ action: CountUp, interval: 1000 }),
+    route,
+  ],
   container: document.body
 });
