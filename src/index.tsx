@@ -10,7 +10,7 @@ import {
 
 import { router, Location } from './router'
 
-function act<S, P, D>(value: DispatchableType<S, P, D>) {
+function act<S extends object, P, D>(value: DispatchableType<S, P, D>) {
   return value;
 }
 
