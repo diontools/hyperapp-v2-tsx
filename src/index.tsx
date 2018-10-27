@@ -17,7 +17,7 @@ function act<S, P, D>(value: DispatchableType<S, P, D>) {
 const mainState = {
   count: 0,
   auto: false,
-  location: {} as Location<any>,
+  location: undefined as Location | undefined,
 };
 
 type MainState = typeof mainState;
@@ -26,7 +26,6 @@ type MainAction<P = {}, D = {}> = Action<MainState, P, D>;
 
 const Test: MainAction = state => {
   history.pushState(null, '', '/abc');
-  return state;
 };
 
 const SetCount: MainAction<{ count: number }> = (state, props) => ({ ...state, count: props.count });
@@ -70,12 +69,15 @@ const tick: SubscriptionEffect<TickProps> = (props) => ({
   ...props
 });
 
-const route = router<MainState>({
+const route = router({
   routes: [{
     path: '/abc',
-    view: state => <div>abc! count: {state.count}</div>
+    view: (state: MainState) => <div>abc! count: {state.count}</div>
+  }, {
+    path: '/xyz',
+    view: (state: MainState) => <div>xyz</div>
   }]
-})
+});
 
 app({
   init: [mainState, delay({ action: CountUp, timeout: 1000 })],
@@ -91,7 +93,7 @@ app({
         auto: {state.auto ? "enabled" : "disabled"}
       </button>
       <div>count: {state.count}</div>
-      <div>{state.location.route.view(state)}</div>
+      <div>{state.location && state.location.route.view(state)}</div>
     </div>
   ),
   subscriptions: state => [
