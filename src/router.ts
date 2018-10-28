@@ -1,7 +1,8 @@
-import { SubscriptionEffectRunner, SubscriptionEffect, VNode, SubscriptionObject, Action } from "hyperapp";
+import { h, SubscriptionEffectRunner, SubscriptionEffect, VNode, DispatchType, Effect, Action } from "hyperapp";
 
-export interface RouteSetting {
+export interface RouterProps {
     routes: Route[],
+    matched: (route: Route | undefined, dispatch: DispatchType<any, any, any>) => void,
 }
 
 export interface Route {
@@ -9,47 +10,62 @@ export interface Route {
     view: (state: any) => VNode;
 }
 
-export interface Location {
-    route: Route;
-}
-
-const SetLocation: Action<{}, Location, {}> = (state, args) => ({
-    ...state,
-    location: args,
-})
-
-const routerRunner: SubscriptionEffectRunner<RouteSetting> = (props, dispatch) => {
+const routerRunner: SubscriptionEffectRunner<RouterProps> = (props, dispatch) => {
     console.log('routing');
-    const push = history.pushState;
-    const replace = history.replaceState;
-    history.pushState = function (data, title, url) {
-        push.call(this, data, title, url);
-        console.log(location.pathname);
+    function onLocationChanged() {
+        console.log(window.location.pathname);
         for (const r of props.routes) {
-            if (r.path === location.pathname) {
-                dispatch([SetLocation, { route: r }]);
-                break;
+            if (r.path === window.location.pathname) {
+                props.matched(r, dispatch);
+                return;
             }
         }
+        props.matched(undefined, dispatch);
     }
-    history.replaceState = function(data, title, url) {
+
+    const push = window.history.pushState;
+    const replace = window.history.replaceState;
+    window.history.pushState = function (data, title, url) {
+        push.call(this, data, title, url);
+        onLocationChanged();
+    }
+    window.history.replaceState = function (data, title, url) {
         replace.call(this, data, title, url);
-        console.log(location.pathname);
+        onLocationChanged();
     }
+    window.addEventListener("popstate", onLocationChanged);
+
+    onLocationChanged();
+
     return () => {
         console.log('unrouting');
-        history.pushState = push;
-        history.replaceState = replace;
+        window.history.pushState = push;
+        window.history.replaceState = replace;
+        window.removeEventListener("popstate", onLocationChanged);
     };
 }
 
-export function router(props: RouteSetting): SubscriptionObject<RouteSetting> {
-    return {
-        effect: routerRunner,
-        ...props,
-    }
+export const createRouter: SubscriptionEffect<RouterProps> = props => ({
+    effect: routerRunner,
+    ...props,
+});
+
+export const pushHistory: Effect<{ pathname: string }> = props => ({
+    effect: (props, dispatch) => {
+        window.history.pushState(null, '', props.pathname);
+    },
+    ...props,
+});
+
+export interface LinkProps {
+    to: string;
 }
 
-export const routingUtil = {
-    go: (pathname: string) => history.pushState(null, '', pathname),
+export function Link(props: LinkProps, children: any) {
+    return h('a', { onClick: [MoveTo, props.to], href: props.to }, children);
+}
+
+const MoveTo: Action<any, string, Event> = (state, to, ev) => {
+    ev.preventDefault();
+    return [state, pushHistory({ pathname: to })]
 }

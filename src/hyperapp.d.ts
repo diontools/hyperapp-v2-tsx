@@ -43,8 +43,8 @@ export type Effect<Props, RunnerProps = Props> = (
   props: Props
 ) => EffectObject<RunnerProps>;
 
-export type ActionResult<S extends object> = void | S | [S, object | object[]];
-export type Action<S extends object, P, D> = (state: S, props: P, data: D) => ActionResult<S>;
+export type ActionResult<S> = void | S | [S, object | object[]];
+export type Action<S, P, D> = (state: S, props: P, data: D) => ActionResult<S>;
 
 export type SubscriptionEffectRunner<P> = (
   props: P,
@@ -67,18 +67,18 @@ export type SubscriptionsResult =
   | SubscriptionType<any>[];
 
 
-export type DispatchableType<S extends object, P, D> =
+export type DispatchableType<S, P, D> =
   | Action<S, {}, {}>
   | [Action<S, P, D>, P]
   | ActionResult<S>;
 
-export type DispatchType<S extends object, P, D> = (
+export type DispatchType<S, P, D> = (
   obj: DispatchableType<S, P, D>,
   data?: any
 ) => void;
 
 
-export function app<State extends object, Props>(props: {
+export function app<State, Props>(props: {
   init: DispatchableType<State, Props, undefined>;
   view: (state: State) => VNode;
   container: Element;

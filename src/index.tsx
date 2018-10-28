@@ -1,14 +1,5 @@
-import {
-  h,
-  app,
-  Effect,
-  DispatchableType,
-  Action,
-  SubscriptionEffectRunner,
-  SubscriptionEffect
-} from "hyperapp";
-
-import { router, Location } from './router'
+import { h, app, DispatchableType, Action } from "hyperapp";
+import { createRouter, Route, pushHistory, Link } from './router'
 
 function act<S extends object, P, D>(value: DispatchableType<S, P, D>) {
   return value;
@@ -16,89 +7,53 @@ function act<S extends object, P, D>(value: DispatchableType<S, P, D>) {
 
 const mainState = {
   count: 0,
-  auto: false,
-  location: undefined as Location | undefined,
+  route: undefined as Route | undefined,
 };
 
 type MainState = typeof mainState;
-
 type MainAction<P = {}, D = {}> = Action<MainState, P, D>;
 
-const Test: MainAction = state => {
-  history.pushState(null, '', '/abc');
-};
+const MoveTo: MainAction<{ pathname: string }> = (state, props) => [state, pushHistory({ pathname: props.pathname })];
 
 const SetCount: MainAction<{ count: number }> = (state, props) => ({ ...state, count: props.count });
-const SetAuto: MainAction<{ auto: boolean }> = (state, props) => ({ ...state, auto: props.auto });
+const SetRoute: MainAction<{ route: Route }> = (state, props) => ({ ...state, route: props.route });
 
-const CountUp: MainAction = (state) => ({ ...state, count: state.count + 1 });
-
-const DelayCountUp: MainAction<{ timeout: number }> = (state, props) => [
-  state,
-  delay({ action: CountUp, timeout: props.timeout })
-];
-
-interface DelayProps {
-  action: DispatchableType<any, any, any>;
-  timeout: number;
-}
-
-const delay: Effect<DelayProps> = (props) => ({
-  effect: (props, dispatch) => {
-    setTimeout(() => dispatch(props.action), props.timeout);
-  },
-  ...props
-});
-
-interface TickProps {
-  action: DispatchableType<any, any, any>;
-  interval: number;
-}
-
-const tickRunner: SubscriptionEffectRunner<TickProps> = (props, dispatch) => {
-  console.log("scribe");
-  const id = setInterval(() => dispatch(props.action), props.interval);
-  return () => {
-    console.log("unscribe");
-    clearInterval(id);
-  };
-};
-
-const tick: SubscriptionEffect<TickProps> = (props) => ({
-  effect: tickRunner,
-  ...props
-});
-
-const route = router({
+const router = createRouter({
   routes: [{
+    path: '/',
+    view: (state: MainState) => <div>home</div>
+  }, {
     path: '/abc',
-    view: (state: MainState) => <div>abc! count: {state.count}</div>
+    view: (state: MainState) => (
+      <div>
+        <button onClick={act([SetCount, { count: state.count + 1 }])}>increment</button>
+        <div>count: {state.count}</div>
+      </div>
+    )
   }, {
     path: '/xyz',
     view: (state: MainState) => <div>xyz</div>
-  }]
+  }],
+  matched: (route, dispatch) => dispatch([SetRoute, { route: route }]),
 });
 
 app({
-  init: [mainState, delay({ action: CountUp, timeout: 1000 })],
+  init: mainState,
   view: state => (
     <div>
-      <button onClick={act([Test, { count: 0 }])}>Test</button>
-      <button onClick={act([SetCount, { count: 0 }])}>Reset to 0</button>
-      <button onClick={act(CountUp)}>increment</button>
-      <button onClick={act([DelayCountUp, { timeout: 1000 }])}>
-        increment with delay
-      </button>
-      <button onClick={act([SetAuto, { auto: !state.auto }])}>
-        auto: {state.auto ? "enabled" : "disabled"}
-      </button>
-      <div>count: {state.count}</div>
-      <div>{state.location && state.location.route.view(state)}</div>
+      <ul>
+        <li><Link to="/">home</Link></li>
+        <li><Link to="/abc">abc</Link></li>
+        <li><Link to="/xyz">xyz</Link></li>
+        <li><Link to="/unknown">unknown</Link></li>
+      </ul>
+      <button onClick={act([MoveTo, { pathname: '/' }])}>home</button>
+      <button onClick={act([MoveTo, { pathname: '/abc' }])}>abc</button>
+      <button onClick={act([MoveTo, { pathname: '/xyz' }])}>xyz</button>
+      <button onClick={act([MoveTo, { pathname: '/unknown' }])}>unknown</button>
+      {state.route ? state.route.view(state) : <div>404</div>}
     </div>
   ),
-  subscriptions: state => [
-    state.auto && tick({ action: CountUp, interval: 1000 }),
-    route,
-  ],
+  subscriptions: state => router,
   container: document.body
 });
